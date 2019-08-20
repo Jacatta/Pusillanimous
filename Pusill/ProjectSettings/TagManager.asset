@@ -3,7 +3,29 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 2
-  tags: []
+  tags:
+  - Back_BackGround
+  - For_BackGround
+  - TopSide_BackGround
+  - Collectable
+  - Tab1
+  - Tab2
+  - Tab3
+  - Tint
+  - CPane
+  - LPane
+  - RPane
+  - Purchase
+  - HeadGear
+  - BodyGear
+  - MiscGear
+  - Dragem
+  - Alert
+  - Trash
+  - Bounds
+  - Stream
+  - Done
+  - Button
   layers:
   - Default
   - TransparentFX
@@ -14,10 +36,10 @@ TagManager:
   - 
   - 
   - PostProcessing
-  - 
-  - 
-  - 
-  - 
+  - Bounding Area TrashPassThrough
+  - Trash
+  - Bounding Area Solid
+  - Arms
   - 
   - 
   - 
@@ -46,4 +68,7 @@ TagManager:
     locked: 0
   - name: Forground
     uniqueID: 3744050729
+    locked: 0
+  - name: Super Forground
+    uniqueID: 3015197895
     locked: 0

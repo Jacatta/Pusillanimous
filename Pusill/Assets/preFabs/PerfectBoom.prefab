@@ -25,6 +25,7 @@ GameObject:
   - component: {fileID: 96758553845077246}
   - component: {fileID: 114860749271132104}
   - component: {fileID: 82414396819419730}
+  - component: {fileID: 50103269080474748}
   m_Layer: 1
   m_Name: PerfectBoom
   m_TagString: Untagged
@@ -45,6 +46,26 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: -90, y: 90, z: 0}
+--- !u!50 &50103269080474748
+Rigidbody2D:
+  serializedVersion: 4
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1765872491788588}
+  m_BodyType: 0
+  m_Simulated: 1
+  m_UseFullKinematicContacts: 0
+  m_UseAutoMass: 0
+  m_Mass: 1
+  m_LinearDrag: 0
+  m_AngularDrag: 0.05
+  m_GravityScale: 0
+  m_Material: {fileID: 0}
+  m_Interpolate: 0
+  m_SleepingMode: 1
+  m_CollisionDetection: 0
+  m_Constraints: 0
 --- !u!82 &82414396819419730
 AudioSource:
   m_ObjectHideFlags: 1
@@ -272,7 +293,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b9956c0e3a5de646b126690cd2374cd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sceneSpeed: 0
+  BackGrounds: []
+  OG_XPosition: 0
+  VertPos: 0
+  SpeedDivisor: 1
+  BoxHeight: 0
 --- !u!198 &198401130218328416
 ParticleSystem:
   m_ObjectHideFlags: 1
@@ -521,7 +546,7 @@ ParticleSystem:
     startSize:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 4
+      scalar: 8
       minScalar: 1
       maxCurve:
         serializedVersion: 2
@@ -2741,7 +2766,7 @@ ParticleSystem:
         m_RotationOrder: 4
     separateAxis: 0
     inWorldSpace: 0
-    multiplyDragByParticleSize: 1
+    multiplyDragByParticleSize: 0
     multiplyDragByParticleVelocity: 1
     dampen: 0
     drag:
