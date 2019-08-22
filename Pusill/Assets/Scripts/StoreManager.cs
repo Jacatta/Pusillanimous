@@ -48,7 +48,9 @@ public class StoreManager : MonoBehaviour
 
 
     public GameObject Popup_NotEnough_Item;
-    public GameObject Popup_DidntPurchase_Set;
+    public GameObject Pop_WaitUp_1;
+    public GameObject Pop_WaitUp_2;
+    public GameObject Pop_WaitUp_3;
     public GameObject CPopup_setPreset;
     public GameObject Pop_NtEnoughCash_yesBtn;
     public Canvas CPopup_Verify;
@@ -94,12 +96,16 @@ public class StoreManager : MonoBehaviour
         PurchaseButton = GameObject.FindGameObjectWithTag("Purchase");
 
         Popup_NotEnough_Item = GameObject.Find("PopUp_NotEnoughForItem");
-        Popup_DidntPurchase_Set = GameObject.Find("PopUp_NotEnoughForSet");
+        Pop_WaitUp_1 = GameObject.Find("Pop_WaitUp_1");
+        Pop_WaitUp_2 = GameObject.Find("Pop_WaitUp_2");
+        Pop_WaitUp_3 = GameObject.Find("Pop_WaitUp_3");
+
         Pop_NtEnoughCash_yesBtn = GameObject.Find("NtEnough_YesButton");
         PS_confirm=GameObject.Find("Confirm Particles").GetComponent<ParticleSystem>();
 
         DressingRoom = new Outfit();
         DressingRoom.Assign(WrdRb.CurrentSet);
+        
 
         newitemAnim = SelectedItem.GetComponent<Animator>();
         newCostAnim = SelectedCost.GetComponent<Animator>();
@@ -120,7 +126,9 @@ public class StoreManager : MonoBehaviour
         WrdRb.PutOn_Outfit(DressingRoom);
 
         Popup_NotEnough_Item.SetActive(false);
-        Popup_DidntPurchase_Set.SetActive(false);
+        Pop_WaitUp_1.SetActive(false);
+        Pop_WaitUp_2.SetActive(false);
+        Pop_WaitUp_3.SetActive(false);
         CPopup_setPreset.SetActive(false);
         PS_confirm.gameObject.SetActive(false);
     }
@@ -170,7 +178,7 @@ public class StoreManager : MonoBehaviour
             Debug.Log("Trade UNSUCCESSFUL!!Not Enough Cash.... stranger!");
         }
     }
-
+    
     public void PurchaseOutfit()
     {
 
@@ -203,15 +211,15 @@ public class StoreManager : MonoBehaviour
             if (BkPak.Currency[0].Qty > tempCost)
             {
                 //CPopup_Verify.gameObject.SetActive(true);
-                Popup_DidntPurchase_Set.SetActive(true);
+                Pop_WaitUp_1.SetActive(true);
                 Pop_NtEnoughCash_yesBtn.GetComponent<Button>().interactable = true;
             }
             else
             {
                 Debug.Log("Sry you dont have the cash for those items");//TO DO: MAKE A NOT ENOUGH CASH NOTIFICATION 
                 Pop_NtEnoughCash_yesBtn.GetComponent<Button>().interactable = false;//enabled = false;
-                Popup_DidntPurchase_Set.SetActive(true);//CREATE POP UP- "Sry you dont have the cash for those items" - BUTTON OK
-                                                    // LoadHomeScene();
+                Pop_WaitUp_1.SetActive(true);//CREATE POP UP- "Sry you dont have the cash for those items" - BUTTON OK
+                                             // LoadHomeScene();
             }
         }
         else
@@ -565,16 +573,15 @@ public class StoreManager : MonoBehaviour
             else Debug.Log("Not Enough Cash... Stranger");
         }
         WrdRb.CurrentSet.Assign(DressingRoom);// I only want to call this if all items get purchased. 
-        // PutOn_Outfit(DressingRoom);
-        Popup_DidntPurchase_Set.SetActive(false);
-       // CPopup_Verify.gameObject.SetActive(false);
+                                              // PutOn_Outfit(DressingRoom);
+        this.GetComponentInParent<GameObject>().gameObject.SetActive(false);
+        
         LoadHomeScene();
     }
 
     public void BuyAllNo()
     {
-        Popup_DidntPurchase_Set.SetActive(true);
-        //CPopup_Verify.gameObject.SetActive(false);
+        this.GetComponentInParent<GameObject>().gameObject.SetActive(false);
         LoadHomeScene();
     }
 
