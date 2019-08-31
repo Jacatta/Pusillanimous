@@ -122,6 +122,7 @@
     <Compile Include="Assets\Scripts\MainGameScene.cs" />
     <Compile Include="Assets\Scripts\MotionBehaviors.cs" />
     <Compile Include="Assets\Scripts\MotionBlur.cs" />
+    <Compile Include="Assets\Scripts\MusicManager.cs" />
     <Compile Include="Assets\Scripts\NoiseAndGrain.cs" />
     <Compile Include="Assets\Scripts\NoiseAndScratches.cs" />
     <Compile Include="Assets\Scripts\oceanTop.cs" />

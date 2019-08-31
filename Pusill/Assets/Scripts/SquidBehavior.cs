@@ -69,6 +69,8 @@ public class SquidBehavior : MonoBehaviour {
     Backpack BkPak;
     BackgroundBehaviors BB;
     GameManager GM;
+    AudioManager AM;
+    ItemEmitter IE;
     
    // BehaviorState BS;
 
@@ -98,9 +100,12 @@ public class SquidBehavior : MonoBehaviour {
     private bool b_follow;
     private bool tethered;
     private bool b_delayed;
+    private bool proxy;
 
     public float followSpeed;
     private float DistanceToTether;
+    private float detectionRange;
+    private float OriginalFOV;
 
 
     public bool ReadyToFollow;
@@ -109,7 +114,9 @@ public class SquidBehavior : MonoBehaviour {
     private float distanceFromObject;
 
     AudioSource CoinAudio;
+    ParticleSystem.MainModule mainMod;
     public BehaviorState behaviorState;
+    private IEnumerator coroutine;
     // Use this for initialization
     void Start () {
         BB = GameObject.FindObjectOfType<BackgroundBehaviors>();
@@ -117,6 +124,8 @@ public class SquidBehavior : MonoBehaviour {
         BkPak = GameObject.FindObjectOfType<Backpack>();
         GM = FindObjectOfType<GameManager>();
         SS = FindObjectOfType<SlipStream_RePosition>();
+        IE = FindObjectOfType<ItemEmitter>();
+        AM = FindObjectOfType<AudioManager>();
 
         //  BS = GameObject.FindObjectOfType<>();
 
@@ -131,6 +140,7 @@ public class SquidBehavior : MonoBehaviour {
         restPosition = GetComponent<Transform>().position;
         timeInc = 0;
         DistanceToTether = 0f;
+        detectionRange = 600;
 
         R_Ankor = GameObject.Find("R_Mid_Ankor").transform.position;
         L_Ankor = GameObject.Find("L_Mid_Ankor").transform.position;
@@ -139,6 +149,9 @@ public class SquidBehavior : MonoBehaviour {
         //ReadyToFollow = false;
 
         followSpeed = 5;
+        OriginalFOV = Camera.main.fieldOfView;
+
+        Debug.Log("FOV: "+OriginalFOV);
         Physics2D.IgnoreLayerCollision(9, 10);
         b_follow=false;
         b_delayed = false;
@@ -165,22 +178,59 @@ public class SquidBehavior : MonoBehaviour {
         //Debug.Log("Current State : " + behaviorState.state);
 
 
+        if(behaviorState.state != "Wipeout")
+        {
+            proxy = false;
+         //   Debug.Log("IE.trash count:  "+ IE.trash.Length);
+           // foreach (GameObject T in IE.trash)
+           // {
+             //   Debug.Log(Vector3.Distance(transform.position, T.transform.position));
+             //
+              //  if (Vector3.Distance(transform.position,T.transform.position) <= detectionRange)
+              //  {
+               //     proxy = true;
+               //     Debug.Log("Distance to nearest trash: "+(Vector3.Distance(this.transform.position, transform.position))*100);
+                    
+                    
+              //  }
+                    
+                
+           // }
 
+ 
+        }
+
+        if (proxy)
+        {
+            Debug.Log("SLOWMO!");
+            Camera.main.fieldOfView = 30f;
+            Time.timeScale = .3f;
+
+        }
+        else
+        {
+            Time.timeScale = 1f;
+            Camera.main.fieldOfView = OriginalFOV;
+        }
         switch (behaviorState.state)
         {
+
             case "FollowState":
                 Behavior_Follow();
-                //Debug.Log("FollowState");
+                Debug.Log("FollowState state");
 
                 break;
 
             case "SlingShot":
                 Behavior_Tether(mousePos);
-                Debug.Log("EndOfLevel");
+                Debug.Log("slingshot state");
 
                 break;
+
             case "SlipStream":
                 Behavior_SlipStream();
+                Debug.Log("Slip state");
+
                 break;
 
             case "WipeOut":
@@ -198,9 +248,13 @@ public class SquidBehavior : MonoBehaviour {
                 {
                     Behavior_WipeOut();
                 }
+                Debug.Log("Wipeout state");
+
                 break;
             case "EndOfLevel":
 
+                break;
+            default:
                 break;
         }
         
@@ -227,6 +281,11 @@ public class SquidBehavior : MonoBehaviour {
      //   R_Arm.GetComponent<RectTransform>().sizeDelta = new Vector2(15, DistanceToRightTether);
     //    L_Arm.GetComponent<RectTransform>().sizeDelta = new Vector2(15, DistanceToLeftTether);
 
+    }
+
+    public void Behavior_Launch()
+    {
+       // RB.velocity = (InitialMousePosition - Input.mousePosition) * 20000;
     }
 
     public void ResetArms()
@@ -307,7 +366,7 @@ public class SquidBehavior : MonoBehaviour {
     public void GainFollowSpeed()
     {
         if (followSpeed < 5)
-        { followSpeed += .2f; }
+        { followSpeed += 5f; }
     }
 
     private void OnMouseDown()
@@ -318,7 +377,7 @@ public class SquidBehavior : MonoBehaviour {
 
     private void OnMouseDrag()
     {
-
+        /*
 
         Vector3 currentPos = new Vector3();
         currentPos = Input.mousePosition;
@@ -336,7 +395,7 @@ public class SquidBehavior : MonoBehaviour {
             //    new Vector3(currentPos.x, currentPos.y, currentPos.z), speed * Time.deltaTime);
             //new Vector3(currentPos.x * .5f, currentPos.y * .5f, currentPos.z * .5f), speed * Time.deltaTime);
         }
-
+        */
 
         GainFollowSpeed();
 
@@ -347,9 +406,10 @@ public class SquidBehavior : MonoBehaviour {
         ResetArms();
         Time.timeScale = 1f;
        // Debug.Log("Launched");
-        Behavior_Delay();
-        RB.velocity = (InitialMousePosition - Input.mousePosition) * 20000;
-        //RB.velocity = (InitialMousePosition - Input.mousePosition)*1000;
+     //   Behavior_Delay();
+        behaviorState.state = "Launch";
+
+      //  Behavior_Launch();
         GM.LevelStart = false;
     
 
@@ -406,10 +466,11 @@ public class SquidBehavior : MonoBehaviour {
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-       
+
+
         if (collision.gameObject.tag == "Trash")
         {
-            Debug.Log("Hit some trash: " + collision.gameObject.name);
+           // Debug.Log("Hit some trash: " + collision.gameObject.name);
             if (behaviorState.IsSlingShot())
             {
                 Debug.Log("Hit some trash while in slingshot");
@@ -454,13 +515,60 @@ public class SquidBehavior : MonoBehaviour {
     void OnTriggerEnter2D(Collider2D other)
     {
 
-        
+        if (other.gameObject.tag == "Gem")
+        {
+            
+            
+            Debug.Log("HIT GEM");
+            other.gameObject.SetActive(false);
+            //DOUBLE BOOST!?
+            GM.StartCoroutine("Boost_SceneSpeed");
+            GM.StartCoroutine("Boost_SceneSpeed");
+
+        }
+
+        if (other.tag == "Coin")
+        {
+
+           // AM.AudioClipSwitch();
+            AM.PlaySound(AM.noteCount);
+            AM.noteCount++;
+            if (AM.noteCount >= AM.scale.Count)
+            {
+                Debug.Log("HIT special Coin");
+                AM.noteCount = 0;
+                coroutine = GM.Boost_SceneSpeed(50);
+                
+            }
+            else
+            {
+                Debug.Log("HIT Coin");
+                coroutine = GM.Boost_SceneSpeed();
+            }
+
+
+            GM.StartCoroutine(coroutine);
+
+            this.GetComponent<ParticleSystem>().Play();
+            //other.GetComponent<ParticleSystem>().Play();
+            other.gameObject.SetActive(false);
+           // CoinAudio.Play();
+            SK.coin++;
+            SK.streak++;
+            // GM.Boost_SceneSpeed();
+        }
         if (other.tag == "Collectable")
         {
+            Debug.Log("HIT Boost");
+            GM.StartCoroutine("Boost_SceneSpeed");
+            
+            this.GetComponent<ParticleSystem>().Play();
+            //other.GetComponent<ParticleSystem>().Play();
             other.gameObject.SetActive(false);
-
             CoinAudio.Play();
             SK.coin++;
+            SK.streak++;
+           // GM.Boost_SceneSpeed();
         }
         else if (other.tag == "Stream")
         {
@@ -468,7 +576,8 @@ public class SquidBehavior : MonoBehaviour {
             //ENTER BEHAVIOR - SLEIP STREAM
             if(tethered==false)
             behaviorState.state = "SlipStream";
-          //  Debug.Log("Entered WarmWaterCurrent");
+            //  Debug.Log("Entered WarmWaterCurrent");
+
             SS.psSceneSpeedUp.gameObject.SetActive(true);
             //.SlipStreamHighlight.gameObject.SetActive(true);
 
@@ -512,6 +621,8 @@ public class SquidBehavior : MonoBehaviour {
         followSpeed *= .3f;
        // B_follow = true;
     }
+
+
 
 
     

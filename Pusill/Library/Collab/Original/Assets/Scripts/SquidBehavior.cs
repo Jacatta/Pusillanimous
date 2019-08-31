@@ -2,14 +2,77 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using BehaviorStateSpace;
+
+
+namespace BehaviorStateSpace
+{
+    //0 = Sling Shot
+    //1 = Follow
+    //2 = Slip Stream
+    //3 = Wipe Out
+    //4 = End of Level
+    
+   public class BehaviorState
+    {
+        //BehaviorState bs;
+        public string state = "None";
+        public BehaviorState(string inState) { state = inState; }
+
+        public bool Equals(BehaviorState inState)
+        {
+            return state == inState.state;
+        }
+
+        public bool Equals(string stateStringName)
+        {
+            return state == stateStringName;
+        }
+
+        public bool IsFollowState()
+        {
+            return state.Equals("FollowState");
+        }
+
+        public bool IsSlingShot()
+        {
+            return state.Equals("SlingShot");
+        }
+
+        public bool isSlipStream()
+        {
+            return state.Equals("SlipStream");
+        }
+
+        public bool IsWipeout()
+        {
+            return state.Equals("Wipeout");
+        }
+
+        public bool IsEndOfLevel()
+        {
+            return state.Equals("EndOfLevel");
+        }
+
+
+    }
+}
 
 public class SquidBehavior : MonoBehaviour {
 
     int MAXINCREMENT = 20;
+    float delay = 0;
 
+    // public int behaviorState;
+    SlipStream_RePosition SS;
     ScoreKeeper SK;
     Backpack BkPak;
     BackgroundBehaviors BB;
+    GameManager GM;
+    AudioManager AM;
+    ItemEmitter IE;
+    
+   // BehaviorState BS;
 
     private Image ImageMe;
     private Vector2 mousePos;
@@ -34,11 +97,15 @@ public class SquidBehavior : MonoBehaviour {
     private Vector3 dragCurrent;
     private float dragSpeed;
     private float yVelocity;
-    private bool B_follow;
+    private bool b_follow;
     private bool tethered;
+    private bool b_delayed;
+    private bool proxy;
 
     public float followSpeed;
     private float DistanceToTether;
+    private float detectionRange;
+    private float OriginalFOV;
 
 
     public bool ReadyToFollow;
@@ -47,11 +114,21 @@ public class SquidBehavior : MonoBehaviour {
     private float distanceFromObject;
 
     AudioSource CoinAudio;
+    ParticleSystem.MainModule mainMod;
+    public BehaviorState behaviorState;
+    private IEnumerator coroutine;
     // Use this for initialization
     void Start () {
         BB = GameObject.FindObjectOfType<BackgroundBehaviors>();
         SK = GameObject.FindObjectOfType<ScoreKeeper>();
         BkPak = GameObject.FindObjectOfType<Backpack>();
+        GM = FindObjectOfType<GameManager>();
+        SS = FindObjectOfType<SlipStream_RePosition>();
+        IE = FindObjectOfType<ItemEmitter>();
+        AM = FindObjectOfType<AudioManager>();
+
+        //  BS = GameObject.FindObjectOfType<>();
+
 
         ImageMe = this.GetComponent<Image>();
         RB = this.GetComponent<Rigidbody2D>();
@@ -63,130 +140,284 @@ public class SquidBehavior : MonoBehaviour {
         restPosition = GetComponent<Transform>().position;
         timeInc = 0;
         DistanceToTether = 0f;
+        detectionRange = 600;
 
         R_Ankor = GameObject.Find("R_Mid_Ankor").transform.position;
         L_Ankor = GameObject.Find("L_Mid_Ankor").transform.position;
 
         target = transform.position;
-        ReadyToFollow = false;
+        //ReadyToFollow = false;
 
         followSpeed = 5;
+        OriginalFOV = Camera.main.fieldOfView;
+
+        Debug.Log("FOV: "+OriginalFOV);
         Physics2D.IgnoreLayerCollision(9, 10);
-        B_follow=false;
+        b_follow=false;
+        b_delayed = false;
         tethered = false;
         R_Arm = GameObject.Find("R_Arm");
         L_Arm = GameObject.Find("L_Arm");
+
+        
+        
+        behaviorState = new BehaviorState("FollowState");
+
+   
+
+
+        //BehaviorStateSpace.state = "SlingShot";
+       // BehaviorState("SlingShot"); 
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (BB.LevelEnd)
+
+
+        //Debug.Log("Current State : " + behaviorState.state);
+
+
+        if(behaviorState.state != "Wipeout")
         {
-            return;
+            proxy = false;
+         //   Debug.Log("IE.trash count:  "+ IE.trash.Length);
+           // foreach (GameObject T in IE.trash)
+           // {
+             //   Debug.Log(Vector3.Distance(transform.position, T.transform.position));
+             //
+              //  if (Vector3.Distance(transform.position,T.transform.position) <= detectionRange)
+              //  {
+               //     proxy = true;
+               //     Debug.Log("Distance to nearest trash: "+(Vector3.Distance(this.transform.position, transform.position))*100);
+                    
+                    
+              //  }
+                    
+                
+           // }
+
+ 
+        }
+
+        if (proxy)
+        {
+            Debug.Log("SLOWMO!");
+            Camera.main.fieldOfView = 30f;
+            Time.timeScale = .3f;
+
         }
         else
         {
-            if (ReadyToFollow)
-            {
-                Behavior_Follow();
-                
-            }
+            Time.timeScale = 1f;
+            Camera.main.fieldOfView = OriginalFOV;
         }
- 
-        
-
-        if (transform.position.y >=2500)
+        switch (behaviorState.state)
         {
-            ReadyToFollow = true;
-            
+
+            case "FollowState":
+                Behavior_Follow();
+                Debug.Log("FollowState state");
+
+                break;
+
+            case "SlingShot":
+                Behavior_Tether(mousePos);
+                Debug.Log("slingshot state");
+
+                break;
+
+            case "SlipStream":
+                Behavior_SlipStream();
+                Debug.Log("Slip state");
+
+                break;
+
+            case "WipeOut":
+                //Debug.Log("Delay = " + delay + 1f);
+               // Debug.Log("Time = " + Time.time);
+                if (delay != 0)
+                {
+                    if (delay + 1f < Time.time)
+                    {
+                        behaviorState.state = "FollowState";
+                        delay = 0;
+                    }
+                        
+                } else
+                {
+                    Behavior_WipeOut();
+                }
+                Debug.Log("Wipeout state");
+
+                break;
+            case "EndOfLevel":
+
+                break;
+            default:
+                break;
         }
+        
 
         GainFollowSpeed();
 
 
     }
 
-    public void Behavior_Tether()
+    public void Behavior_Tether(Vector3 mousePosition)
     {
         Debug.Log("Hit tether");
         tethered = true;
-        DistanceToTether = Vector3.Distance(transform.position, currentPosition);
-        R_Arm.transform.rotation = Quaternion.LookRotation(Vector3.forward, R_Ankor);
+        
+        //Scale time gradually
+        //Time.timeScale = .5f;
+        
+      //  float DistanceToLeftTether = Vector3.Distance(L_Ankor, transform.position)*.45f;
+     //   float DistanceToRightTether = Vector3.Distance(R_Ankor, transform.position)*.45f;
+ 
+    //    R_Arm.transform.rotation = Quaternion.LookRotation(Vector3.forward, R_Ankor - transform.position);
+      //  L_Arm.transform.rotation = Quaternion.LookRotation(Vector3.forward, L_Ankor - transform.position);
 
-        L_Arm.transform.rotation = Quaternion.LookRotation(Vector3.forward, L_Ankor);
+     //   R_Arm.GetComponent<RectTransform>().sizeDelta = new Vector2(15, DistanceToRightTether);
+    //    L_Arm.GetComponent<RectTransform>().sizeDelta = new Vector2(15, DistanceToLeftTether);
 
-       // R_Arm.transform.localScale = new Vector3(1, DistanceToTether, 1f);
-        R_Arm.transform.localScale = new Vector3(1, 4, 1f);
-        L_Arm.transform.localScale = new Vector3(1, 4, 1f);
+    }
 
+    public void Behavior_Launch()
+    {
+       // RB.velocity = (InitialMousePosition - Input.mousePosition) * 20000;
     }
 
     public void ResetArms()
     {
-        R_Arm.transform.localScale = Vector3.Lerp(R_Arm.transform.position, new Vector3 (1, 0.1f, 1f), 1000f);
-        L_Arm.transform.localScale = Vector3.Lerp(L_Arm.transform.position, new Vector3(1, 0.1f, 1f), 1000f);
-       // L_Arm.transform.localScale = new Vector3(1, 1, 1f);
+        Debug.Log("ResetArms Called");
+
+        R_Arm.SetActive(false);
+        L_Arm.SetActive(false);
+        R_Arm.GetComponent<RectTransform>().sizeDelta = new Vector2(15, 0);
+        L_Arm.GetComponent<RectTransform>().sizeDelta = new Vector2(15, 0);
     }
 
     public void Behavior_Follow()
     {
+        //Debug.Log("Follow Behavior");
 
-        Follow_mouse();
-        if (B_follow)
+        Vector3 currentPos = new Vector3();
+        currentPos = Input.mousePosition;
+
+        RB.velocity = (currentPos - transform.position) * followSpeed;
+
+
+        if (RB.velocity.magnitude < 600)
         {
-            
+            RB.velocity *= 2;
         }
-   
+        if (tethered)
+            transform.rotation = Quaternion.LookRotation(Vector3.forward, Vector3.up);
+        else
+            transform.rotation = Quaternion.LookRotation(Vector3.forward, currentPos - transform.position);
+    }
+
+    public void Behavior_SlipStream()
+    {
+        //followSpeed *=.95f;
+        GM.sceneSpeed += 2f;
+        //behaviorState.state = "FollowState";//
+        if(!b_delayed)
+        {
+            Behavior_Follow();
+        }
+        
+        //behaviorState.state = "FollowState"; 
+        SS.psPlayerEntered.gameObject.SetActive(true);
+
+
+
+
+    }
+
+    public void Behavior_WipeOut()
+    {
+        Debug.Log("Initial velocity: " + RB.velocity);
+        Debug.Log("Initial angular velocity: " + RB.angularVelocity);
+        Debug.Log("Initial angular drag: " + RB.angularDrag);
+        var opposite = -RB.velocity;
+        RB.velocity = opposite;
+        RB.angularVelocity = 360f;
+        Debug.Log("After velocity: " + RB.velocity);
+        Debug.Log("After angular velocity: " + RB.angularVelocity);
+        Debug.Log("After angular drag: " + RB.angularDrag);
+
+        // Behavior_Delay();
+        //StartCoroutine(Delay_WipeOut());
+        delay = Time.time;
     }
 
     public void Behavior_Delay()
     {
-        Debug.Log("Hit");
-
-        StartCoroutine(DelayFollowMouse());
+        Debug.Log("Behavior Delay");
+        b_delayed = true;
+ 
+        StartCoroutine(Delay_FollowMouse());
         
     }
 
 
-        public void GainFollowSpeed()
+    public void GainFollowSpeed()
     {
         if (followSpeed < 5)
-        { followSpeed += .02f; }
+        { followSpeed += 5f; }
     }
 
     private void OnMouseDown()
     {
         InitialMousePosition = Input.mousePosition;
+      // behaviorState.state = "SlingShot";
     }
 
     private void OnMouseDrag()
     {
+        /*
 
         Vector3 currentPos = new Vector3();
         currentPos = Input.mousePosition;
+        behaviorState.state = "SlingShot";
+        tethered = false;
 
-        if (BB.LevelStart == true)
+        transform.position = Vector3.MoveTowards(new Vector3(transform.position.x, transform.position.y, transform.position.z),
+          new Vector3(currentPos.x, currentPos.y, currentPos.z), speed * Time.deltaTime);
+
+      //  Debug.Log("GM.LevelStart" + GM.LevelStart);
+        if (GM.LevelStart == true)
         {
-            transform.position = Vector3.MoveTowards(new Vector3(transform.position.x, transform.position.y, transform.position.z),
-                                    new Vector3(currentPos.x * .5f, currentPos.y * .5f, currentPos.z * .5f), speed * Time.deltaTime);
+            
+           // transform.position = Vector3.MoveTowards(new Vector3(transform.position.x, transform.position.y, transform.position.z),
+            //    new Vector3(currentPos.x, currentPos.y, currentPos.z), speed * Time.deltaTime);
+            //new Vector3(currentPos.x * .5f, currentPos.y * .5f, currentPos.z * .5f), speed * Time.deltaTime);
         }
+        */
 
-
-
+        GainFollowSpeed();
 
     }
 
     private void OnMouseUp()
     {
-        Debug.Log("Launched");
-        RB.velocity = (InitialMousePosition - Input.mousePosition) * 1000;
-        //RB.velocity = (InitialMousePosition - Input.mousePosition)*1000;
-        BB.LevelStart = false;
-        ReadyToFollow = false;
-        Behavior_Delay();
-        // BB.sceneSpeed = 100;
         ResetArms();
+        Time.timeScale = 1f;
+       // Debug.Log("Launched");
+     //   Behavior_Delay();
+        behaviorState.state = "Launch";
+
+      //  Behavior_Launch();
+        GM.LevelStart = false;
+    
+
+        // Behavior_Delay();
+        // BB.sceneSpeed = 100;
+
+
+
 
     }
 
@@ -198,117 +429,15 @@ public class SquidBehavior : MonoBehaviour {
 
     public void Follow_mouse()
     {
-        Vector3 currentPos = new Vector3();
-        currentPos = Input.mousePosition;
-       
-        RB.velocity = (currentPos - transform.position)*followSpeed;
-       
 
-        if (RB.velocity.magnitude < 600)
-        {
-            RB.velocity *= 2;
-        }
-        transform.rotation = Quaternion.LookRotation(Vector3.forward, currentPos - transform.position);
     }
-
-    public void BehaviorUnderTheSea()
-    {
-        //Do you want to keep this? It will change the direction even if you miss the bubble...
-        if (Input.GetMouseButtonDown(0))
-        {
-            FaceMousePosition();
-        }
-        currentPosition = transform.position;
-
-
-        if (timeInc == 0)
-        {
-            //Debug.Log(transform.eulerAngles.z);
-            if (transform.eulerAngles.z > 180)
-                transform.eulerAngles += new Vector3(0, 0, 0.5f);
-            else if (transform.eulerAngles.z < 180)
-                transform.eulerAngles += new Vector3(0, 0, -0.5f);
-            if (transform.eulerAngles.z < 1 && transform.eulerAngles.z > -1)
-                transform.eulerAngles = Vector3.zero;
-
-            Vector3 movementDirection = (restPosition - currentPosition);
-            if (movementDirection.magnitude > 1)
-            {
-                movementDirection.Normalize();
-                movementDirection *= 10;
-            }
-
-            Vector2 movement2D = new Vector2(movementDirection.x, 0); //movementDirection.y
-                                                                      // Debug.Log("movement2D: " + movement2D);
-            RB.velocity = movement2D * 20;
-        }
-        else
-            timeInc--;
-    }
-
-    public void BehaviorOverTheSea()
-    {
-        // Make Rest position @ the top of the scene. //Acheived in BackGround Behavior - SetRestPositionHigh
-        // Make Astrid face down
-        if(BB.sceneSpeed<=0)
-        {
-            FaceTheOcean();
-        }
-        
-        // Vector3 direction = new Vector3(0, 0, -1 * Mathf.Atan2((screenPos.x - transform.position.x), (screenPos.y - transform.position.y)) * Mathf.Rad2Deg);
-        // Make controling astrid by drag
-        // Make it so Astrid slows down near the top. 
-        if(transform.position.y>400)
-        {
-            yVelocity = 0;
-        }
-
-        if (!Input.GetMouseButton(0)) return;
-        Vector3 currentPos = Input.mousePosition;
-    }
+    
 
     public void RemoveAstrid()
     {
         GameObject A = GameObject.Find("Astrid");
         A.GetComponent<BoxCollider2D>().enabled = false; // So astrid doesnt collide with objects 
     }
-
-    public void SetRestPositionHigh()
-    {
-        restPosition.y = 300f;
-        currentPosition = transform.position;
-        Vector3 movementDirection = (restPosition - currentPosition);
-        yVelocity = 100f;
-
-        Vector2 movement2D = new Vector2(0, yVelocity);// movementDirection.y);
-        RB.velocity = movement2D;
-    }
-
-    public void FaceTheOcean()
-    {
-
-        // Vector3 rotationVector = new Vector3(0, 30, 0);
-        //Quaternion desination = Quaternion.Euler(direction);
- 
-        temp = 180f;
-  
-        
-        Vector3 direction = new Vector3(0, 0, temp);
-        Quaternion desination = Quaternion.Euler(direction);
-        Quaternion og = Quaternion.Euler(transform.position);
-
-
-       // desination = (og - this.transform.rotation);
-       
-
-        if(transform.rotation.z >=100f)
-        {
-            transform.rotation = Quaternion.Lerp(og, desination, .9f);
-        }
-        transform.rotation = Quaternion.Lerp(og, desination, .9f);
-       // transform.eulerAngles = Quaternion.Lerp(og, desination,2f);//direction);
-    }
-
 
     public void FaceMousePosition()
     {
@@ -337,40 +466,163 @@ public class SquidBehavior : MonoBehaviour {
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        //Debug.Log(collision.gameObject.name);
+
+
         if (collision.gameObject.tag == "Trash")
         {
+           // Debug.Log("Hit some trash: " + collision.gameObject.name);
+            if (behaviorState.IsSlingShot())
+            {
+                Debug.Log("Hit some trash while in slingshot");
+                //Destroy(collision.gameObject);
+                collision.gameObject.GetComponent<Image>().enabled = false;
+                //Activate particle effect
+                GM.goboom(collision.gameObject.transform.position);
+               // collision.gameObject.GetComponentInChildren<ParticleSystem>().Play();
+              //  Debug.Log(collision.gameObject.GetComponentInChildren<ParticleSystem>().isPlaying);
+
+            }
+            
+
+
+            collision.gameObject.tag = "Done";
+                       
             followSpeed *= .1f;
+            GM.sceneSpeed *= .4f;
+            if (behaviorState.state.Equals("WipeOut"))
+            {
+                delay += 1f;
+            }
+            else
+            {
+                behaviorState.state = "WipeOut";
+            }
+           // SS.ResetToNewPosition();
+
+
+
         }
+        else
+        {
+            if (collision.gameObject.tag == "Bounds") return;
+
+           // Debug.LogError("Hit something thats not a stream or bottle tag: " + collision.gameObject.tag);
+            //Debug.LogError("Hit something thats not a stream or bottle tag");
+        }
+
     }
 
     void OnTriggerEnter2D(Collider2D other)
     {
 
-        
+        if (other.gameObject.tag == "Gem")
+        {
+            
+            
+            Debug.Log("HIT GEM");
+            other.gameObject.SetActive(false);
+            //DOUBLE BOOST!?
+            GM.StartCoroutine("Boost_SceneSpeed");
+            GM.StartCoroutine("Boost_SceneSpeed");
+
+        }
+
+        if (other.tag == "Coin")
+        {
+
+           // AM.AudioClipSwitch();
+            AM.PlaySound(AM.noteCount);
+            AM.noteCount++;
+            if (AM.noteCount >= AM.scale.Count)
+            {
+                Debug.Log("HIT special Coin");
+                AM.noteCount = 0;
+                coroutine = GM.Boost_SceneSpeed(50);
+                
+            }
+            else
+            {
+                Debug.Log("HIT Coin");
+                coroutine = GM.Boost_SceneSpeed();
+            }
+
+
+            GM.StartCoroutine(coroutine);
+
+            this.GetComponent<ParticleSystem>().Play();
+            //other.GetComponent<ParticleSystem>().Play();
+            other.gameObject.SetActive(false);
+           // CoinAudio.Play();
+            SK.coin++;
+            SK.streak++;
+            // GM.Boost_SceneSpeed();
+        }
         if (other.tag == "Collectable")
         {
+            Debug.Log("HIT Boost");
+            GM.StartCoroutine("Boost_SceneSpeed");
+            
+            this.GetComponent<ParticleSystem>().Play();
+            //other.GetComponent<ParticleSystem>().Play();
             other.gameObject.SetActive(false);
-
             CoinAudio.Play();
             SK.coin++;
-        } else if(other.tag == "Collectable")
-        {
-            Debug.Log("HitSomething Good");
-            other.gameObject.SetActive(false);
-           // other.gameObject.GetComponent<Image>().enabled = false;
-            followSpeed += 3;
-            BB.sceneSpeed += 50;
+            SK.streak++;
+           // GM.Boost_SceneSpeed();
         }
-   
+        else if (other.tag == "Stream")
+        {
+           // Debug.Log("SceneSpeed : " + GM.sceneSpeed);
+            //ENTER BEHAVIOR - SLEIP STREAM
+            if(tethered==false)
+            behaviorState.state = "SlipStream";
+            //  Debug.Log("Entered WarmWaterCurrent");
+
+            SS.psSceneSpeedUp.gameObject.SetActive(true);
+            //.SlipStreamHighlight.gameObject.SetActive(true);
+
+            // GM.sceneSpeed += 5f;
+        }
+
+
     }
-    public IEnumerator DelayFollowMouse()
+
+    private void OnTriggerExit2D(Collider2D other)
     {
-        yield return new WaitForSeconds(.4f);
-        ReadyToFollow = true;
+        if (other.tag == "Stream")
+        {
+            
+            //behaviorState.state = "FollowState";
+            Debug.Log("Exited WarmWaterCurrent");
+            GM.sceneSpeed -= 30f;
+            SS.psPlayerEntered.gameObject.SetActive(false);
+            SS.psSceneSpeedUp.gameObject.SetActive(false);
+           // SS.SlipStreamHighlight.gameObject.SetActive(false);
+        }
+        if (other.tag == "Done")
+        {
+            other.tag = "Trash";
+        }
+    }
+
+    public IEnumerator Delay_WipeOut()
+    {
+        yield return new WaitForSeconds(.2f);
+        behaviorState.state = "FollowState";
+        //  behaviorState.state = "WipeOut";
+
+    }
+
+    public IEnumerator Delay_FollowMouse()
+    {
+        yield return new WaitForSeconds(.3f);
+        behaviorState.state = "FollowState";
+        b_delayed = false;
         followSpeed *= .3f;
        // B_follow = true;
     }
+
+
 
 
     
